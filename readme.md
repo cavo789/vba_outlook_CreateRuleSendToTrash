@@ -1,6 +1,6 @@
-# Outlook - Create rule to remove emails received by spammer
+# Outlook - Create rule to remove emails received by spammer (email or domain)
 
-> Outlook macro for creating a rule that will send all emails received from a specific sender to the trash.
+> Outlook macro for creating a rule that will send all emails received from a specific sender / domain to the trash.
 
 ## Description
 
@@ -15,21 +15,22 @@
 
 Get a copy of the `module.bas` VBA code and copy it into your Outlook client.
 
-* Press `ALT-F11` in Outlook to open the `Visual Basic Editor` (aka	VBE) window.
-* Create a new module and copy/paste the content of the `module.bas` file that you can found in this repository
-* Close the VBE
-* Right-click on your Outlook ribbon to customize it so you can add a new button. Assign the `CreateRuleSendToTrash` subroutine to that button.
+- Press `ALT-F11` in Outlook to open the `Visual Basic Editor` (aka VBE) window.
+- Create a new module and copy/paste the content of the `module.bas` file that you can found in this repository
+- Close the VBE
+- Right-click on your Outlook ribbon to customize it so you can add a new button. Assign the `CreateRuleSendToTrash` subroutine to that button.
 
 ## Usage
 
-1. From Outlook, select the mail of the spammer
+1. From Outlook, select one or more spam emails
 2. Run the macro below (best : add a button in your ribbon)
 
 What does this macro ?
 
-* Get the email address of the spammer (f.i. contact@bank.com)
-* Create a rule in the "DefaultStore" of Outlook for removing emails with that emails and send mails to the deleted items folder
-* Iterate all accounts present in your Outlook and run rules against all accounts. So, every if the rule is created only in the "DefaultStore" (i.e. one account), the rule will be fired for all configured accounts.
+- Get the email address of the spammer (f.i. spam@yahoo.co.uk)
+- Ask the user if emails from that domain (@yahoo.co.uk) should be removed from now or only those sender (spam@yahoo.co.uk)
+- Create a rule in the "DefaultStore" of Outlook for removing emails with that emails/domain and send mails to the deleted items folder
+- Iterate all accounts present in your Outlook and run rules against all accounts. So, every if the rule is created only in the "DefaultStore" (i.e. one account), the rule will be fired for all configured accounts.
 
 ## Author
 
