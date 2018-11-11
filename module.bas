@@ -57,93 +57,113 @@ Public Sub CreateRuleSendToTrash()
 
 	J = oExplorer.Selection.Count
 
+	On error resume next
+
 	' Process every selected emails; one by one
 	For I = 1 To J
 
 		' Retrieve the selected email
 		Set oMail = oExplorer.Selection.Item(I)
 
-		' Mark the mail as Read
-		oMail.UnRead = False
+		' When two or more emails was from the same sender (name or domain),
+		' deleting the first email also delete the other ones so it's
+		' possible that the mail coming from the selection already doesn't
+		' exists anymore
+		If Not (oMail Is Nothing) Then
 
-		' Retrieve the spam email address, the one to ban (f.i. spam@yahoo.jp)
-		sSendereMail = oMail.SenderEmailAddress
+			' Mark the mail as Read
+			oMail.UnRead = False
 
-		' Retrieve the domain name (f.i. @yahoo.jp)
-		arrTemp = Split(sSendereMail, "@")
-		sDomain = "@" + arrTemp(1)
+			' Retrieve the spam email address, the one to ban (f.i. spam@yahoo.jp)
+			sSendereMail = oMail.SenderEmailAddress
 
-		' --------------------------------------
-		' 1. Verify if that rule doesn't exists yet
+			' Retrieve the domain name (f.i. @yahoo.jp)
+			arrTemp = Split(sSendereMail, "@")
+			sDomain = "@" + arrTemp(1)
 
-		' Define the name of the rule
-		For K = 1 To 2
+			' --------------------------------------
+			' 1. Verify if that rule doesn't exists yet
 
-			sRuleName = cPrefix & IIf(K = 1, sSendereMail, sDomain)
+			' Define the name of the rule
+			For K = 1 To 2
 
-			bContinue = True
-			Set oRules = Session.DefaultStore.GetRules()
+				sRuleName = cPrefix & IIf(K = 1, sSendereMail, sDomain)
+
+				bContinue = True
+				Set oRules = Session.DefaultStore.GetRules()
+			
+				For Each oRule In oRules
+						If (oRule.Name = sRuleName) Then
+							Debug.Print sRuleName & " already exists"
+							K = 2
+							bContinue = False
+							Exit For
+						End If
+				Next
+
+			Next K
 		
-			For Each oRule In oRules
-					If (oRule.Name = sRuleName) Then
-						Debug.Print sRuleName & " already exists"
-						K = 2
-						bContinue = False
-						Exit For
-					End If
-			Next
+			' We don't need the mail anymore
+			oMail.Delete
+			
+			If (bContinue) Then
 
-		Next K
-	 
-		If (bContinue) Then
+				' ----------------------------------------
+				' 2. The rule doesn't exists yet so create it
 
-			' ----------------------------------------
-			' 2. The rule doesn't exists yet so create it
+				' Do we need to block only the sender (spam@yahoo.jp) or all emails coming from the domain (@yahoo.jp)
 
-			' Do we need to block only the sender (spam@yahoo.jp) or all emails coming from the domain (@yahoo.jp)
+				bDomain = (MsgBox("SendToTrash - Send emails to Trash as soon as they " & _
+					"are received " & vbCrLf & vbCrLf & _
+					"* from domain " & sDomain & " (--> Click on Yes) " & vbCrLf & vbCrLf & _
+					"* from sender " & sSendereMail & " (--> Click on No) ", _
+					vbQuestion + vbYesNo + vbDefaultButton1) = vbYes)
 
-			bDomain = (MsgBox("SendToTrash - Send emails to Trash as soon as they " & _
-				"are received " & vbCrLf & vbCrLf & _
-				"* from domain " & sDomain & " (--> Click on Yes) " & vbCrLf & vbCrLf & _
-				"* from sender " & sSendereMail & " (--> Click on No) ", _
-				vbQuestion + vbYesNo + vbDefaultButton1) = vbYes)
+				Debug.Print "Create a rule for removing all mails sent by " + _
+					IIf(bDomain, sDomain, sSendereMail)
+			
+				If (bDomain) Then
+					'Set oRuleCondition = Outlook.AddressRuleCondition
+					Set oRule = oRules.Create(cPrefix & sDomain, olRuleReceive)
+				Else
+					'Set oRuleCondition = Outlook.ToOrFromRuleCondition
+					Set oRule = oRules.Create(cPrefix & sSendereMail, olRuleReceive)
+				End If
 
-			Debug.Print "Create a rule for removing all mails sent by " + _
-				IIf(bDomain, sDomain, sSendereMail)
-		
-			If (bDomain) Then
-				'Set oRuleCondition = Outlook.AddressRuleCondition
-				Set oRule = oRules.Create(cPrefix & sDomain, olRuleReceive)
-			Else
-				'Set oRuleCondition = Outlook.ToOrFromRuleCondition
-				Set oRule = oRules.Create(cPrefix & sSendereMail, olRuleReceive)
-			End If
+				' Condition = when received by the spam email address
+				If (bDomain) Then
+					Set oRuleCondition = oRule.Conditions.SenderAddress
+					oRuleCondition.Address = Array(sDomain)
+				Else
+					Set oRuleCondition = oRule.Conditions.From
+					oRuleCondition.Recipients.Add (sSendereMail)
+				End If
 
-			' Condition = when received by the spam email address
-			If (bDomain) Then
-				Set oRuleCondition = oRule.Conditions.SenderAddress
-				oRuleCondition.Address = Array(sDomain)
-			Else
-				Set oRuleCondition = oRule.Conditions.From
-				oRuleCondition.Recipients.Add (sSendereMail)
-			End If
+				With oRuleCondition
+					.Enabled = True
+					If Not (bDomain) Then .Recipients.ResolveAll
+				End With
 
-			With oRuleCondition
-				.Enabled = True
-				If Not (bDomain) Then .Recipients.ResolveAll
-			End With
+				' Action = send to the trash
+				Set oMoveRuleAction = oRule.Actions.MoveToFolder
+				With oMoveRuleAction
+					.Enabled = True
+					.Folder = Session.GetDefaultFolder(olFolderDeletedItems)
+				End With
 
-			' Action = send to the trash
-			Set oMoveRuleAction = oRule.Actions.MoveToFolder
-			With oMoveRuleAction
-				.Enabled = True
-				.Folder = Session.GetDefaultFolder(olFolderDeletedItems)
-			End With
+				' Save the rules collection
+				oRules.Save
 
-			' Save the rules collection
-			oRules.Save
+				' Remove the mail
+				oMail.Delete
 
-		End If ' If bContinue
+			End If ' If bContinue
+
+		Else
+
+			Err.Clear
+
+		End If ' If Not (oMail Is Nothing) Then
 
 	Next I
 
