@@ -1,6 +1,6 @@
-![Banner](images/banner.jpg)
-
 # Outlook - Create rule to remove emails received by spammer (email or domain)
+
+![Banner](./banner.svg)
 
 > Outlook macro for creating a rule that will send all emails received from a specific sender / domain to the trash.
 
